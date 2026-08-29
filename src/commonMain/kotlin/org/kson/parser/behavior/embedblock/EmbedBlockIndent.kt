@@ -50,7 +50,22 @@ class EmbedBlockIndent(embedContent: String) {
      * returns: 2
      */
     fun computeMinimumIndent(): Int {
-        val linesWithNewlines = rawEmbedContent.split("\n").map { it + "\n" }
+        /**
+         * A genuinely empty line carries no indent information, so it takes no part in the
+         * minimum. Whitespace-only lines still do: those spaces are typed characters, and the
+         * behavior documented above depends on them. Without this, a single empty line — a
+         * markdown paragraph break, say — reports an indent of 0 and flattens the minimum for
+         * the whole block.
+         *
+         * The final line is the exception, and is always counted: it is not content at all but
+         * the whitespace preceding the closing delimiter, which defines the minimum indent when
+         * it is the least indented (see `testEmbedBlockCloseDelimDefinesMinIndent`). A closer at
+         * column 0 leaves that line empty, and its zero must still count.
+         */
+        val lines = rawEmbedContent.split("\n")
+        val linesWithNewlines = lines
+            .filterIndexed { index, line -> index == lines.lastIndex || line.isNotEmpty() }
+            .map { it + "\n" }
 
         val minCommonIndent =
             linesWithNewlines.minOfOrNull { it.indexOfFirst { char -> !isInlineWhitespace(char) } } ?: 0

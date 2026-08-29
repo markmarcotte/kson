@@ -1019,6 +1019,24 @@ class KsonCoreTestEmbedBlock : KsonCoreTest {
         )
     }
 
+    /**
+     * A markdown paragraph break is a genuinely empty line, which must not flatten the block's
+     * minimum indent (see `EmbedBlockIndentTest`).  Exercised end-to-end here because the case
+     * that motivates the rule is a whole document, not the indent calculation in isolation:
+     * before this, one blank line left the content indented by KSON's own structural indent.
+     */
+    @Test
+    fun testEmbedBlockBlankContentLineDoesNotFlattenIndent() {
+        assertParsesTo(
+            "%markdown\n  # Heading\n\n  some text\n  %%",
+            "%markdown\n# Heading\n\nsome text\n%%",
+            "|\n  # Heading\n  \n  some text",
+            """
+                "# Heading\n\nsome text"
+            """.trimIndent()
+        )
+    }
+
     @Test
     fun testEmbedBlockEdgeCases() {
         // Empty content with inline %%

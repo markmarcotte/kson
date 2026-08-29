@@ -125,6 +125,25 @@ class EmbedBlockIndentTest {
         assertEquals("", embedBlockIndent.trimMinimumIndent())
     }
 
+    /**
+     * A genuinely empty line carries no indent information, so it must not take part in the
+     * minimum. Contrast the whitespace-only cases above, where the spaces are typed characters
+     * and do count. This matters most for markdown, where an empty line is a paragraph break:
+     * without this, one paragraph break drags the minimum to zero and nothing is stripped.
+     *
+     * Written as a plain string rather than `trimMargin` on purpose — a `|` with nothing after
+     * it is exactly the construct that hides whether a line is empty or holds a space.
+     */
+    @Test
+    fun `test computeMinimumIndent ignores a truly empty line`() {
+        val input = "  # Heading\n\n  some text"
+
+        val embedBlockIndent = EmbedBlockIndent(input)
+
+        assertEquals(2, embedBlockIndent.computeMinimumIndent())
+        assertEquals("# Heading\n\nsome text", embedBlockIndent.trimMinimumIndent())
+    }
+
     @Test
     fun `test trimMinimumIndent determined by trailing end-delim`() {
         val input = """
