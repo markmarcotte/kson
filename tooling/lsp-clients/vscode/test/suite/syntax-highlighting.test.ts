@@ -221,23 +221,43 @@ after: %python
             {tag: 'nosuchlang', body: 'whatever', expected: 'generic'},
         ];
 
-        for (const {tag, body, expected} of cases) {
-            it(`Should end a \`%${tag}\` block at a closer on the last content line`, async () => {
-                const [uri, document] = await createTestFile(`key: %${tag}\n  ${body}%%\nafter: 1`);
+        // Both delimiters are generated from the same code, but only one rule per language
+        // carries the backreference that has to resolve to the pair actually used.
+        for (const delimiter of ['%', '$'] as const) {
+            const close = delimiter + delimiter;
+            const other = delimiter === '%' ? '$$' : '%%';
+
+            for (const {tag, body, expected} of cases) {
+                it(`Should end a \`${delimiter}${tag}\` block at a closer on the last content line`, async () => {
+                    const [uri, document] = await createTestFile(`key: ${delimiter}${tag}\n  ${body}${close}\nafter: 1`);
+                    testFileUri = uri;
+
+                    // The content still reaches the right language's grammar.
+                    assert.strictEqual(await embedBlockAtLine(document, 1, 2), expected,
+                        `\`${delimiter}${tag}\` content should be scoped as ${expected}`);
+
+                    // The closer scopes as the block's end, not as embedded content.
+                    const closerScopes = await getTokenScopesAtPosition(document, 1, 2 + body.length);
+                    assert.ok(closerScopes.includes('punctuation.section.embedded.end.kson'),
+                        `the \`${close}\` on the content line should close the block; got ${JSON.stringify(closerScopes)}`);
+
+                    // And the block ends there, rather than swallowing the key that follows.
+                    assert.strictEqual(await embedBlockAtLine(document, 2, 0), undefined,
+                        `the \`${delimiter}${tag}\` block ran on past its closer`);
+                }).timeout(10000);
+            }
+
+            it(`Should not end a \`${delimiter}\` block at a \`${other}\` in the body`, async () => {
+                const [uri, document] = await createTestFile(
+                    `key: ${delimiter}python\n  x = "${other}"\n  y = 2${close}\nafter: 1`);
                 testFileUri = uri;
 
-                // The content still reaches the right language's grammar.
-                assert.strictEqual(await embedBlockAtLine(document, 1, 2), expected,
-                    `\`%${tag}\` content should be scoped as ${expected}`);
+                // Only the block's own pair closes it; the other is ordinary content.
+                assert.strictEqual(await embedBlockAtLine(document, 1, 2), 'python',
+                    `a \`${other}\` in the body should not close a \`${delimiter}\` block`);
 
-                // The closer scopes as the block's end, not as embedded content.
-                const closerScopes = await getTokenScopesAtPosition(document, 1, 2 + body.length);
-                assert.ok(closerScopes.includes('punctuation.section.embedded.end.kson'),
-                    `the \`%%\` on the content line should close the block; got ${JSON.stringify(closerScopes)}`);
-
-                // And the block ends there, rather than swallowing the key that follows.
-                assert.strictEqual(await embedBlockAtLine(document, 2, 0), undefined,
-                    `the \`%${tag}\` block ran on past its closer`);
+                assert.strictEqual(await embedBlockAtLine(document, 3, 0), undefined,
+                    `the \`${delimiter}python\` block ran on past its closer`);
             }).timeout(10000);
         }
     });
