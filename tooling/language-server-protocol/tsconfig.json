@@ -2,9 +2,12 @@
   "compilerOptions": {
     "target": "es2017",
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
+    "rootDir": "./src",
     "outDir": "out",
     // Custom types
+    "types": ["node", "mocha"],
+    "strict": false,
     "typeRoots": [
       "./node_modules/@types"
     ],
